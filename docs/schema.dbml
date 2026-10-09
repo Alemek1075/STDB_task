@@ -26,25 +26,45 @@ Table departments {
   phone       varchar(20)
 }
 
+Table positions {
+  id           smallint     [pk, increment]
+  name         varchar(100) [not null, unique, note: 'assistant, senior lecturer, docent, professor, ...']
+  is_academic  boolean      [not null, default: true]
+}
+
 Table employees {
   id             int          [pk, increment]
   department_id  int          [not null, ref: > departments.id]
+  position_id    smallint     [not null, ref: > positions.id]
   first_name     varchar(50)  [not null]
   last_name      varchar(50)  [not null]
   middle_name    varchar(50)
   email          varchar(100) [not null, unique]
   phone          varchar(20)
+  academic_degree varchar(30) [note: 'PhD, DSc, ... (nullable)']
   hire_date      date         [not null]
   salary         numeric(10,2) [not null, note: 'CHECK salary > 0']
 }
 
 // ───────────────────────── Students ─────────────────────────
 
+Table degree_levels {
+  id              smallint     [pk, increment]
+  code            varchar(10)  [not null, unique, note: 'BSc | MSc | PhD']
+  name            varchar(50)  [not null]
+  duration_years  numeric(2,1) [not null]
+}
+
 Table specialties {
   id             int          [pk, increment]
   department_id  int          [not null, ref: > departments.id, note: 'graduating department']
+  degree_level_id smallint    [not null, ref: > degree_levels.id]
   code           varchar(10)  [not null, note: 'state code, e.g. 121']
   name           varchar(200) [not null]
+
+  indexes {
+    (code, degree_level_id) [unique]
+  }
 }
 
 Table student_groups {
@@ -78,6 +98,16 @@ Table courses {
   name           varchar(200) [not null]
   description    text
   ects_credits   numeric(4,1) [not null]
+  hours_total    smallint     [not null]
+}
+
+Table course_prerequisites {
+  course_id        int  [not null, ref: > courses.id]
+  prerequisite_id  int  [not null, ref: > courses.id, note: 'CHECK prerequisite_id <> course_id']
+
+  indexes {
+    (course_id, prerequisite_id) [pk]
+  }
 }
 
 Table academic_terms {
@@ -137,4 +167,59 @@ Table grades {
   indexes {
     (assessment_id, student_id) [unique]
   }
+}
+
+// ───────────────────────── Campus & schedule ─────────────────────────
+
+Table buildings {
+  id       smallint     [pk, increment]
+  code     varchar(10)  [not null, unique]
+  name     varchar(100) [not null]
+  address  varchar(200) [not null]
+}
+
+Table classrooms {
+  id           int          [pk, increment]
+  building_id  smallint     [not null, ref: > buildings.id]
+  room_number  varchar(10)  [not null]
+  capacity     smallint     [not null]
+  room_type    varchar(15)  [not null, note: 'lecture | seminar | lab | computer']
+
+  indexes {
+    (building_id, room_number) [unique]
+  }
+}
+
+Table schedule_slots {
+  id            int          [pk, increment]
+  offering_id   int          [not null, ref: > course_offerings.id]
+  classroom_id  int          [not null, ref: > classrooms.id]
+  day_of_week   smallint     [not null, note: '1 (Mon) .. 6 (Sat)']
+  pair_number   smallint     [not null, note: '1 .. 8']
+  lesson_type   varchar(10)  [not null, note: 'lecture | practice | lab']
+  week_parity   varchar(4)   [not null, default: 'all', note: 'all | odd | even']
+}
+
+Table attendance {
+  id           bigint       [pk, increment]
+  slot_id      int          [not null, ref: > schedule_slots.id]
+  student_id   int          [not null, ref: > students.id]
+  lesson_date  date         [not null]
+  status       varchar(10)  [not null, note: 'present | absent | late | excused']
+
+  indexes {
+    (slot_id, student_id, lesson_date) [unique]
+  }
+}
+
+// ───────────────────────── Finance ─────────────────────────
+
+Table tuition_payments {
+  id              int           [pk, increment]
+  student_id      int           [not null, ref: > students.id]
+  term_id         int           [not null, ref: > academic_terms.id]
+  amount          numeric(10,2) [not null]
+  paid_at         timestamptz   [not null, default: `now()`]
+  payment_method  varchar(10)   [not null, note: 'card | bank | cash']
+  reference       varchar(50)   [unique, note: 'bank transaction id']
 }
