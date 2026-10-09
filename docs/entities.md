@@ -1,6 +1,6 @@
 # Entities (data dictionary)
 
-20 entities in 5 subject areas. Full column list with types is in [schema.dbml](schema.dbml),
+22 entities in 6 subject areas. Full column list with types is in [schema.dbml](schema.dbml),
 the picture is in [er-diagram.md](er-diagram.md).
 
 ## Organisation
@@ -48,12 +48,23 @@ the picture is in [er-diagram.md](er-diagram.md).
 |---|-------|----------------|--------------------|
 | 20 | `tuition_payments` | Contract students' payments per term | PK `id`; AK `reference`; -> students, academic_terms |
 
+## Security and history
+
+| # | Table | What it stores | Keys and relations |
+|---|-------|----------------|--------------------|
+| 21 | `app_users` | Accounts and roles; source of `created_by` / `updated_by` / `deleted_by` | PK `id`; AK `username`; `employee_id` -> employees (1:1), `student_id` -> students (1:1) |
+| 22 | `audit_log` | Row history as old/new `jsonb` | PK `id`; `changed_by` -> app_users |
+
+Audit columns and soft delete are described in [requirements.md](requirements.md) (NFR-01..03).
+In the DBML they are declared once as `TablePartial audit_fields` / `soft_delete` and injected into tables.
+
 ## Relationship types used
 
 - **1:N** - the majority, e.g. `faculties` -> `departments` -> `employees`.
 - **0..1:N (optional)** - `dean_id`, `head_id`, `curator_id`: the position can be vacant.
 - **M:N through an associative entity** - `enrollments` (students × offerings), `grades` (students × assessments),
   `attendance` (students × schedule slots).
+- **1:1** - `app_users.employee_id` / `student_id` (unique FK).
 - **Recursive M:N** - `course_prerequisites` (courses × courses).
 - **Circular reference** - `departments.head_id -> employees` while `employees.department_id -> departments`;
   handled by making the head nullable and filling it after the employee exists.

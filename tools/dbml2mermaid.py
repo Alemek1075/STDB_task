@@ -1,9 +1,11 @@
 """Convert docs/schema.dbml into a Mermaid ER diagram (docs/er-diagram.md).
 
 GitHub renders Mermaid natively, so the diagram is visible right in the repo.
-Supports the DBML subset used in this project: Table blocks, column settings
-(pk, unique, not null, inline `ref: >`), composite `indexes { (...) [pk] }`
-and standalone `Ref:` lines.
+Supports the DBML subset used in this project: Table / TablePartial blocks,
+`~partial` injection, column settings (pk, unique, not null, inline `ref: >`),
+composite `indexes { (...) [pk] }` and standalone `Ref:` lines.
+Columns whose note starts with "FK " are marked as FK without drawing a line
+(used for the audit columns, which would otherwise connect every table to app_users).
 
 Usage: python tools/dbml2mermaid.py
 """
@@ -14,7 +16,8 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "docs" / "schema.dbml"
 DST = ROOT / "docs" / "er-diagram.md"
 
-TABLE_RE = re.compile(r"^Table\s+(\w+)\s*\{")
+TABLE_RE = re.compile(r"^(Table|TablePartial)\s+(\w+)\s*\{")
+INJECT_RE = re.compile(r"^~(\w+)$")
 COL_RE = re.compile(r"^(\w+)\s+([\w(),]+)\s*(?:\[(.*)\])?\s*$")
 INLINE_REF_RE = re.compile(r"ref:\s*([<>-])\s*(\w+)\.(\w+)")
 STANDALONE_REF_RE = re.compile(r"^Ref:\s*(\w+)\.(\w+)\s*([<>-])\s*(\w+)\.(\w+)")
@@ -23,15 +26,15 @@ NOTE_RE = re.compile(r"note:\s*'([^']*)'")
 
 
 def parse(text):
-    tables, refs = {}, []
+    tables, partials, refs = {}, {}, []
     current, in_indexes = None, False
     for raw in text.splitlines():
         line = raw.split("//")[0].strip()
         if not line:
             continue
         if m := TABLE_RE.match(line):
-            current = m.group(1)
-            tables[current] = []
+            current = m.group(2)
+            (partials if m.group(1) == "TablePartial" else tables)[current] = []
             continue
         if m := STANDALONE_REF_RE.match(line):
             refs.append((m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)))
@@ -47,10 +50,14 @@ def parse(text):
             else:
                 current = None
             continue
+        cols = tables[current] if current in tables else partials[current]
+        if m := INJECT_RE.match(line):
+            cols.extend(dict(c) for c in partials[m.group(1)])
+            continue
         if in_indexes:
             if m := COMPOSITE_PK_RE.match(line):
                 for name in (c.strip() for c in m.group(1).split(",")):
-                    for col in tables[current]:
+                    for col in cols:
                         if col["name"] == name:
                             col["pk"] = True
             continue
@@ -67,10 +74,11 @@ def parse(text):
             }
             if n := NOTE_RE.search(settings):
                 col["note"] = n.group(1).replace('"', "'")
+                col["fk"] = col["note"].startswith("FK ")
             if r := INLINE_REF_RE.search(settings):
                 col["fk"] = True
                 refs.append((current, name, r.group(1), r.group(2), r.group(3)))
-            tables[current].append(col)
+            cols.append(col)
     # mark FK columns that came from standalone refs
     for t, c, *_ in refs:
         for col in tables.get(t, []):

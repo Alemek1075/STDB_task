@@ -3,10 +3,13 @@
 > Generated from [`schema.dbml`](schema.dbml) by `python tools/dbml2mermaid.py`.
 > The same DBML can be pasted into <https://dbdiagram.io/d> for an interactive view.
 
-Entities: **20**, relationships: **30**.
+Entities: **22**, relationships: **33**.
 
 ```mermaid
 erDiagram
+    employees |o--o| app_users : "employee_id"
+    students |o--o| app_users : "student_id"
+    app_users |o--o{ audit_log : "changed_by"
     employees |o--o{ faculties : "dean_id"
     faculties ||--o{ departments : "faculty_id"
     employees |o--o{ departments : "head_id"
@@ -37,11 +40,36 @@ erDiagram
     students ||--o{ attendance : "student_id"
     students ||--o{ tuition_payments : "student_id"
     academic_terms ||--o{ tuition_payments : "term_id"
+    app_users {
+        int id PK
+        varchar username UK
+        varchar role "admin | dean_office | teacher | student"
+        int employee_id FK,UK
+        int student_id FK,UK
+        boolean is_active
+        timestamptz created_at
+    }
+    audit_log {
+        bigint id PK
+        varchar table_name
+        bigint record_id
+        varchar operation "INSERT | UPDATE | DELETE | SOFT_DELETE | RESTORE"
+        jsonb old_data
+        jsonb new_data
+        int changed_by FK
+        timestamptz changed_at
+    }
     faculties {
         int id PK
         varchar code UK "e.g. FCS"
         varchar name UK
         int dean_id FK "nullable: faculty may have no dean yet"
+        timestamptz created_at
+        int created_by FK "FK app_users.id"
+        timestamptz updated_at
+        int updated_by FK "FK app_users.id"
+        timestamptz deleted_at "NULL = active row"
+        int deleted_by FK "FK app_users.id"
     }
     departments {
         int id PK
@@ -50,6 +78,12 @@ erDiagram
         varchar name
         int head_id FK
         varchar phone
+        timestamptz created_at
+        int created_by FK "FK app_users.id"
+        timestamptz updated_at
+        int updated_by FK "FK app_users.id"
+        timestamptz deleted_at "NULL = active row"
+        int deleted_by FK "FK app_users.id"
     }
     positions {
         smallint id PK
@@ -68,6 +102,12 @@ erDiagram
         varchar academic_degree "PhD, DSc, ... (nullable)"
         date hire_date
         numeric salary "CHECK salary > 0"
+        timestamptz created_at
+        int created_by FK "FK app_users.id"
+        timestamptz updated_at
+        int updated_by FK "FK app_users.id"
+        timestamptz deleted_at "NULL = active row"
+        int deleted_by FK "FK app_users.id"
     }
     degree_levels {
         smallint id PK
@@ -88,6 +128,12 @@ erDiagram
         varchar code UK "e.g. КН-21"
         smallint enrollment_year
         int curator_id FK
+        timestamptz created_at
+        int created_by FK "FK app_users.id"
+        timestamptz updated_at
+        int updated_by FK "FK app_users.id"
+        timestamptz deleted_at "NULL = active row"
+        int deleted_by FK "FK app_users.id"
     }
     students {
         int id PK
@@ -101,6 +147,12 @@ erDiagram
         date enrollment_date
         varchar funding_type "budget | contract"
         varchar status "active | academic_leave | expelled | graduated"
+        timestamptz created_at
+        int created_by FK "FK app_users.id"
+        timestamptz updated_at
+        int updated_by FK "FK app_users.id"
+        timestamptz deleted_at "NULL = active row"
+        int deleted_by FK "FK app_users.id"
     }
     courses {
         int id PK
@@ -110,6 +162,12 @@ erDiagram
         text description
         numeric ects_credits
         smallint hours_total
+        timestamptz created_at
+        int created_by FK "FK app_users.id"
+        timestamptz updated_at
+        int updated_by FK "FK app_users.id"
+        timestamptz deleted_at "NULL = active row"
+        int deleted_by FK "FK app_users.id"
     }
     course_prerequisites {
         int course_id PK,FK
@@ -128,6 +186,10 @@ erDiagram
         int term_id FK
         int group_id FK
         int lecturer_id FK
+        timestamptz created_at
+        int created_by FK "FK app_users.id"
+        timestamptz updated_at
+        int updated_by FK "FK app_users.id"
     }
     enrollments {
         int id PK
@@ -136,6 +198,10 @@ erDiagram
         timestamptz enrolled_at
         varchar status "enrolled | completed | failed | withdrawn"
         numeric final_points
+        timestamptz created_at
+        int created_by FK "FK app_users.id"
+        timestamptz updated_at
+        int updated_by FK "FK app_users.id"
     }
     assessments {
         int id PK
@@ -144,6 +210,10 @@ erDiagram
         varchar assessment_type "module | exam | lab | test | coursework"
         numeric max_points
         date due_date
+        timestamptz created_at
+        int created_by FK "FK app_users.id"
+        timestamptz updated_at
+        int updated_by FK "FK app_users.id"
     }
     grades {
         int id PK
@@ -152,6 +222,10 @@ erDiagram
         numeric points
         int graded_by FK
         timestamptz graded_at
+        timestamptz created_at
+        int created_by FK "FK app_users.id"
+        timestamptz updated_at
+        int updated_by FK "FK app_users.id"
     }
     buildings {
         smallint id PK
@@ -190,5 +264,9 @@ erDiagram
         timestamptz paid_at
         varchar payment_method "card | bank | cash"
         varchar reference UK "bank transaction id"
+        timestamptz created_at
+        int created_by FK "FK app_users.id"
+        timestamptz updated_at
+        int updated_by FK "FK app_users.id"
     }
 ```
