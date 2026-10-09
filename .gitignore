@@ -1,0 +1,16 @@
+# Course task materials (not part of the solution)
+Task+materials/
+
+# Local PostgreSQL cluster
+.pgdata/
+pg.log
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+
+# IDE
+.idea/
+.vscode/

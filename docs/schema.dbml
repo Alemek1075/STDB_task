@@ -1,0 +1,140 @@
+// University Management System — database schema
+// Open https://dbdiagram.io/d and paste this file to get the visual diagram.
+// Naming standard: English, snake_case, plural table names, surrogate key "id",
+// foreign keys "<entity>_id", check-style enums stored as varchar.
+
+Project university {
+  database_type: 'PostgreSQL'
+  Note: 'Variant 1 — Система управління університетом'
+}
+
+// ───────────────────────── Organisation ─────────────────────────
+
+Table faculties {
+  id          int          [pk, increment]
+  code        varchar(10)  [not null, unique, note: 'e.g. FCS']
+  name        varchar(200) [not null, unique]
+  dean_id     int          [ref: > employees.id, note: 'nullable: faculty may have no dean yet']
+}
+
+Table departments {
+  id          int          [pk, increment]
+  faculty_id  int          [not null, ref: > faculties.id]
+  code        varchar(10)  [not null, unique]
+  name        varchar(200) [not null]
+  head_id     int          [ref: > employees.id]
+  phone       varchar(20)
+}
+
+Table employees {
+  id             int          [pk, increment]
+  department_id  int          [not null, ref: > departments.id]
+  first_name     varchar(50)  [not null]
+  last_name      varchar(50)  [not null]
+  middle_name    varchar(50)
+  email          varchar(100) [not null, unique]
+  phone          varchar(20)
+  hire_date      date         [not null]
+  salary         numeric(10,2) [not null, note: 'CHECK salary > 0']
+}
+
+// ───────────────────────── Students ─────────────────────────
+
+Table specialties {
+  id             int          [pk, increment]
+  department_id  int          [not null, ref: > departments.id, note: 'graduating department']
+  code           varchar(10)  [not null, note: 'state code, e.g. 121']
+  name           varchar(200) [not null]
+}
+
+Table student_groups {
+  id               int          [pk, increment]
+  specialty_id     int          [not null, ref: > specialties.id]
+  code             varchar(20)  [not null, unique, note: 'e.g. КН-21']
+  enrollment_year  smallint     [not null]
+  curator_id       int          [ref: > employees.id]
+}
+
+Table students {
+  id               int          [pk, increment]
+  group_id         int          [not null, ref: > student_groups.id]
+  record_book_no   varchar(20)  [not null, unique, note: 'natural key (alternate key)']
+  first_name       varchar(50)  [not null]
+  last_name        varchar(50)  [not null]
+  middle_name      varchar(50)
+  birth_date       date         [not null]
+  email            varchar(100) [not null, unique]
+  enrollment_date  date         [not null]
+  funding_type     varchar(10)  [not null, note: 'budget | contract']
+  status           varchar(20)  [not null, default: 'active', note: 'active | academic_leave | expelled | graduated']
+}
+
+// ───────────────────────── Teaching ─────────────────────────
+
+Table courses {
+  id             int          [pk, increment]
+  department_id  int          [not null, ref: > departments.id]
+  code           varchar(20)  [not null, unique]
+  name           varchar(200) [not null]
+  description    text
+  ects_credits   numeric(4,1) [not null]
+}
+
+Table academic_terms {
+  id             int          [pk, increment]
+  academic_year  varchar(9)   [not null, note: '2025/2026']
+  semester       smallint     [not null, note: '1 | 2']
+  start_date     date         [not null]
+  end_date       date         [not null]
+
+  indexes {
+    (academic_year, semester) [unique]
+  }
+}
+
+Table course_offerings {
+  id           int  [pk, increment]
+  course_id    int  [not null, ref: > courses.id]
+  term_id      int  [not null, ref: > academic_terms.id]
+  group_id     int  [not null, ref: > student_groups.id]
+  lecturer_id  int  [not null, ref: > employees.id]
+
+  indexes {
+    (course_id, term_id, group_id) [unique]
+  }
+}
+
+Table enrollments {
+  id            int          [pk, increment]
+  student_id    int          [not null, ref: > students.id]
+  offering_id   int          [not null, ref: > course_offerings.id]
+  enrolled_at   timestamptz  [not null, default: `now()`]
+  status        varchar(15)  [not null, default: 'enrolled', note: 'enrolled | completed | failed | withdrawn']
+  final_points  numeric(5,2)
+
+  indexes {
+    (student_id, offering_id) [unique]
+  }
+}
+
+Table assessments {
+  id               int          [pk, increment]
+  offering_id      int          [not null, ref: > course_offerings.id]
+  title            varchar(100) [not null]
+  assessment_type  varchar(15)  [not null, note: 'module | exam | lab | test | coursework']
+  max_points       numeric(5,2) [not null]
+  due_date         date
+}
+
+Table grades {
+  id             int          [pk, increment]
+  assessment_id  int          [not null, ref: > assessments.id]
+  student_id     int          [not null, ref: > students.id]
+  points         numeric(5,2) [not null]
+  graded_by      int          [not null, ref: > employees.id]
+  graded_at      timestamptz  [not null, default: `now()`]
+
+  indexes {
+    (assessment_id, student_id) [unique]
+  }
+}
