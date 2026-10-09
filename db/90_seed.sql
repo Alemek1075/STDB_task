@@ -90,8 +90,6 @@ SELECT g.id,
 FROM student_groups g
 CROSS JOIN generate_series(1, 10) AS n;
 
-UPDATE students SET status = 'academic_leave' WHERE record_book_no = '2025-0209';
-
 -- ─────────────────────────── Courses ───────────────────────────
 
 INSERT INTO courses (department_id, code, name, description, ects_credits, hours_total) VALUES
@@ -174,6 +172,9 @@ FROM (SELECT gr.student_id, a.offering_id, sum(gr.points) AS total
       GROUP BY gr.student_id, a.offering_id) g
 WHERE g.student_id = e.student_id AND g.offering_id = e.offering_id;
 
+-- one student went on academic leave after the first term
+UPDATE students SET status = 'academic_leave' WHERE record_book_no = '2025-0209';
+
 -- ─────────────────────────── Term 2 (current): only students who passed prerequisites ───────────────────────────
 
 INSERT INTO enrollments (student_id, offering_id, enrolled_at)
@@ -250,5 +251,7 @@ INSERT INTO app_users (username, role, employee_id) VALUES
 
 INSERT INTO app_users (username, role, student_id)
 SELECT 'student' || s.id, 'student', s.id FROM students s WHERE s.id IN (1, 11);
+
+CALL sp_refresh_statistics();
 
 DO $$ BEGIN PERFORM set_config('app.user_id', '', false); END $$;
